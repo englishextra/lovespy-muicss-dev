@@ -3125,4 +3125,4 @@ if (typeof exports === 'object') {
 		}
 	};
 	window.$readMoreJS = RM;
-})(this, this.document);
+})("undefined" !== typeof window ? window : this, document);
