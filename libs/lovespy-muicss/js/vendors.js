@@ -1,4 +1,413 @@
 /*!
+ * @license Minigrid v3.1.1 minimal cascading grid layout http://alves.im/minigrid
+ * @see {@link https://github.com/henriquea/minigrid}
+ * changed element selection method
+ * passes jshint
+ */
+(function(root, document) {
+	"use strict";
+	var getElementsByClassName = "getElementsByClassName";
+	var getElementById = "getElementById";
+	var _length = "length";
+	function extend(a, b) {
+		for (var key in b) {
+			if (b.hasOwnProperty(key)) {
+				a[key] = b[key];
+			}
+		}
+		return a;
+	}
+	var elementsSelector;
+	elementsSelector = function (selector, context, undefined) {
+		var matches = {
+			"#": "getElementById",
+			".": "getElementsByClassName",
+			"@": "getElementsByName",
+			"=": "getElementsByTagName",
+			"*": "querySelectorAll"
+		}
+		[selector[0]];
+		var el = (((context === undefined) ? document : context)[matches](selector.slice(1)));
+		return ((el.length < 2) ? el[0] : el);
+	};
+	var Minigrid = function(props) {
+		var containerEle = props.container instanceof Node ?
+			(props.container) :
+			(elementsSelector(props.container) || "");
+		var itemsNodeList = props.item instanceof NodeList ?
+			props.item :
+			(elementsSelector(props.item) || "");
+		this.props = extend(props, {
+			container: containerEle,
+			nodeList: itemsNodeList
+		});
+	};
+	Minigrid.prototype.mount = function() {
+		if (!this.props.container) {
+			return false;
+		}
+		if (!this.props.nodeList || this.props.nodeList[_length] === 0) {
+			return false;
+		}
+		var gutter = (typeof this.props.gutter === "number" && isFinite(this.props.gutter) && Math.floor(this.props.gutter) === this.props.gutter) ? this.props.gutter : 0;
+		var done = this.props.done;
+		var containerEle = this.props.container;
+		var itemsNodeList = this.props.nodeList;
+		containerEle.style.width = "";
+		var forEach = Array.prototype.forEach;
+		var containerWidth = containerEle.getBoundingClientRect().width;
+		var firstChildWidth = itemsNodeList[0].getBoundingClientRect().width + gutter;
+		var cols = Math.max(Math.floor((containerWidth - gutter) / firstChildWidth), 1);
+		var count = 0;
+		containerWidth = (firstChildWidth * cols + gutter) + "px";
+		containerEle.style.width = containerWidth;
+		containerEle.style.position = "relative";
+		var itemsGutter = [];
+		var itemsPosX = [];
+		for (var g = 0; g < cols; ++g) {
+			itemsPosX.push(g * firstChildWidth + gutter);
+			itemsGutter.push(gutter);
+		}
+		if (this.props.rtl) {
+			itemsPosX.reverse();
+		}
+		forEach.call(itemsNodeList, function(item) {
+			var itemIndex = itemsGutter.slice(0).sort(function(a, b) {
+				return a - b;
+			}).shift();
+			itemIndex = itemsGutter.indexOf(itemIndex);
+			var posX = parseInt(itemsPosX[itemIndex]);
+			var posY = parseInt(itemsGutter[itemIndex]);
+			item.style.position = "absolute";
+			item.style.webkitBackfaceVisibility = item.style.backfaceVisibility = "hidden";
+			item.style.transformStyle = "preserve-3d";
+			item.style.transform = "translate3D(" + posX + "px," + posY + "px, 0)";
+			itemsGutter[itemIndex] += item.getBoundingClientRect().height + gutter;
+			count = count + 1;
+		});
+		containerEle.style.display = "";
+		var containerHeight = itemsGutter.slice(0).sort(function(a, b) {
+			return a - b;
+		}).pop();
+		containerEle.style.height = containerHeight + "px";
+		if (typeof done === "function") {
+			done(itemsNodeList);
+		}
+	};
+	root.Minigrid = Minigrid;
+}
+("undefined" !== typeof window ? window : this, document));
+
+/*!
+ * @app ReadMoreJS
+ * @desc Breaks the content of an element to the specified number of words
+ * @version 1.0.0
+ * @license The MIT License (MIT)
+ * @author George Raptis | http://georap.gr
+ * @see {@link https://github.com/georapbox/ReadMore.js/blob/master/src/readMoreJS.js}
+ * changed: rmLink = doc.querySelectorAll('.rm-link');
+ * to: rmLink = doc.getElementsByClassName('rm-link') || "";
+ * changed: var target = doc.querySelectorAll(options.target)
+ * to: var target = elementsSelector(options.target)
+ */
+(function (win, doc, undef) {
+	'use strict';
+	var RM = {};
+	RM.helpers = {
+		extendObj: function () {
+			for (var i = 1, l = arguments.length; i < l; i++) {
+				for (var key in arguments[i]) {
+					if (arguments[i].hasOwnProperty(key)) {
+						if (arguments[i][key] && arguments[i][key].constructor && arguments[i][key].constructor === Object) {
+							arguments[0][key] = arguments[0][key] || {};
+							this.extendObj(arguments[0][key], arguments[i][key]);
+						} else {
+							arguments[0][key] = arguments[i][key];
+						}
+					}
+				}
+			}
+			return arguments[0];
+		}
+	};
+	RM.countWords = function (str) {
+		return str.split(/\s+/).length;
+	};
+	RM.generateTrimmed = function (str, wordsNum) {
+		return str.split(/\s+/).slice(0, wordsNum).join(' ') + '...';
+	};
+	RM.init = function (options) {
+		var defaults = {
+			target: '',
+			numOfWords: 50,
+			toggle: true,
+			moreLink: 'read more...',
+			lessLink: 'read less'
+		};
+		options = RM.helpers.extendObj({}, defaults, options);
+		var elementsSelector;
+		elementsSelector = function (selector, context, undefined) {
+			var matches = {
+				"#": "getElementById",
+				".": "getElementsByClassName",
+				"@": "getElementsByName",
+				"=": "getElementsByTagName",
+				"*": "querySelectorAll"
+			}
+			[selector[0]];
+			var el = (((context === undefined) ? document : context)[matches](selector.slice(1)));
+			return ((el.length < 2) ? el[0] : el);
+		};
+		var target = elementsSelector(options.target) || "",
+		targetLen = target.length,
+		targetContent,
+		trimmedTargetContent,
+		targetContentWords,
+		initArr = [],
+		trimmedArr = [],
+		i,
+		j,
+		l,
+		moreContainer,
+		rmLink,
+		moreLinkID,
+		index;
+		for (i = 0; i < targetLen; i++) {
+			targetContent = target[i].innerHTML;
+			trimmedTargetContent = RM.generateTrimmed(targetContent, options.numOfWords);
+			targetContentWords = RM.countWords(targetContent);
+			initArr.push(targetContent);
+			trimmedArr.push(trimmedTargetContent);
+			if (options.numOfWords < targetContentWords - 1) {
+				target[i].innerHTML = trimmedArr[i];
+				if (options.inline) {
+					moreContainer = doc.createElement('span');
+				} else {
+					if (options.customBlockElement) {
+						moreContainer = doc.createElement(options.customBlockElement);
+					} else {
+						moreContainer = doc.createElement('div');
+					}
+				}
+				moreContainer.innerHTML = '<a href="javascript:void(0);" id="rm-more_' +
+					i +
+					'" class="rm-link" style="cursor:pointer;">' +
+					options.moreLink +
+					'</a>';
+				if (options.inline) {
+					target[i].appendChild(moreContainer);
+				} else {
+					target[i].parentNode.insertBefore(moreContainer, target[i].nextSibling);
+				}
+			}
+		}
+		rmLink = doc.getElementsByClassName('rm-link') || "";
+		var func = function () {
+			moreLinkID = this.getAttribute('id');
+			index = moreLinkID.split('_')[1];
+			if (this.getAttribute('data-clicked') !== 'true') {
+				target[index].innerHTML = initArr[index];
+				if (options.toggle !== false) {
+					this.innerHTML = options.lessLink;
+					this.setAttribute('data-clicked', true);
+				} else {
+					this.innerHTML = '';
+				}
+			} else {
+				target[index].innerHTML = trimmedArr[index];
+				this.innerHTML = options.moreLink;
+				this.setAttribute('data-clicked', false);
+			}
+		};
+		for (j = 0, l = rmLink.length; j < l; j++) {
+			rmLink[j].onclick = func;
+		}
+	};
+	window.$readMoreJS = RM;
+})("undefined" !== typeof window ? window : this, document);
+
+/*!
+ * A small javascript library for ripples
+ * /Written by Aaron Längert
+ * @see {@link https://github.com/SirBaaron/ripple-js}
+ * replaced eval with workaround
+ * moved functions away from for loop
+ * == to ===
+ * added is binded ripple class to avoid multiple assignments
+ * moved some functions higher
+ * passes jshint
+ */
+(function (root, document) {
+	"use strict";
+	var ripple = (function () {
+		function getRippleContainer(el) {
+			var childs = el.childNodes;
+			for (var ii = 0; ii < childs.length; ii++) {
+				try {
+					/* if (childs[ii].className.indexOf("rippleContainer") > -1) { */
+					if (childs[ii].classList.contains("rippleContainer")) {
+						return childs[ii];
+					}
+				} catch (err) {}
+			}
+			return el;
+		}
+		function rippleStart(e) {
+			var rippleContainer = getRippleContainer(e.target);
+			/* if ((rippleContainer.getAttribute("animating") === "0" || !rippleContainer.hasAttribute("animating")) && e.target.className.indexOf("ripple") > -1) { */
+			if ((rippleContainer.getAttribute("animating") === "0" || !rippleContainer.hasAttribute("animating")) && e.target.classList.contains("ripple")) {
+				rippleContainer.setAttribute("animating", "1");
+				var offsetX = typeof e.offsetX === "number" ? e.offsetX : e.touches[0].clientX - e.target.getBoundingClientRect().left;
+				var offsetY = typeof e.offsetY === "number" ? e.offsetY : e.touches[0].clientY - e.target.getBoundingClientRect().top;
+				var fullCoverRadius = Math.max(Math.sqrt(Math.pow(offsetX, 2) + Math.pow(offsetY, 2)), Math.sqrt(Math.pow(e.target.clientWidth - offsetX, 2) + Math.pow(e.target.clientHeight - offsetY, 2)), Math.sqrt(Math.pow(offsetX, 2) + Math.pow(e.target.clientHeight - offsetY, 2)), Math.sqrt(Math.pow(offsetY, 2) + Math.pow(e.target.clientWidth - offsetX, 2)));
+				var expandTime = e.target.getAttribute("ripple-press-expand-time") || 3;
+				rippleContainer.style.transition = "transform " + expandTime + "s ease-out, box-shadow 0.1s linear";
+				rippleContainer.style.background = e.target.getAttribute("ripple-color") || "white";
+				rippleContainer.style.opacity = e.target.getAttribute("ripple-opacity") || "0.6";
+				rippleContainer.style.boxShadow = e.target.getAttribute("ripple-shadow") || "none";
+				rippleContainer.style.top = offsetY + "px";
+				rippleContainer.style.left = offsetX + "px";
+				rippleContainer.style.transform = "translate(-50%, -50%) scale(" + fullCoverRadius / 100 + ")";
+			}
+		}
+		function rippleEnd(e) {
+			var rippleContainer = getRippleContainer(e.target);
+			if (rippleContainer.getAttribute("animating") === "1") {
+				rippleContainer.setAttribute("animating", "2");
+				var background = root.getComputedStyle(rippleContainer, null).getPropertyValue("background");
+				var destinationRadius = e.target.clientWidth + e.target.clientHeight;
+				rippleContainer.style.transition = "none";
+				var expandTime = e.target.getAttribute("ripple-release-expand-time") || 0.4;
+				rippleContainer.style.transition = "transform " + expandTime + "s linear, background " + expandTime + "s linear, opacity " + expandTime + "s ease-in-out";
+				rippleContainer.style.transform = "translate(-50%, -50%) scale(" + destinationRadius / 100 + ")";
+				rippleContainer.style.background = "radial-gradient(transparent 10%, " + background + " 40%)";
+				rippleContainer.style.opacity = "0";
+				e.target.dispatchEvent(new CustomEvent("ripple-button-click", {
+						target: e.target
+					}));
+				var Fn = Function;
+				new Fn("" + e.target.getAttribute("onrippleclick")).call(root);
+			}
+		}
+		function rippleRetrieve(e) {
+			var rippleContainer = getRippleContainer(e.target);
+			if (rippleContainer.style.transform === "translate(-50%, -50%) scale(0)") {
+				rippleContainer.setAttribute("animating", "0");
+			}
+			if (rippleContainer.getAttribute("animating") === "1") {
+				rippleContainer.setAttribute("animating", "3");
+				var collapseTime = e.target.getAttribute("ripple-leave-collapse-time") || 0.4;
+				rippleContainer.style.transition = "transform " + collapseTime + "s linear, box-shadow " + collapseTime + "s linear";
+				rippleContainer.style.boxShadow = "none";
+				rippleContainer.style.transform = "translate(-50%, -50%) scale(0)";
+			}
+		}
+		var ripple = {
+			registerRipples: function () {
+				var rippleButtons = document.getElementsByClassName("ripple");
+				var i;
+				var fn1 = function () {
+					rippleButtons[i].addEventListener("touchstart", function (e) {
+						rippleStart(e);
+					}, {
+						passive: true
+					});
+					rippleButtons[i].addEventListener("touchmove", function (e) {
+						if (e.target.hasAttribute("ripple-cancel-on-move")) {
+							rippleRetrieve(e);
+							return;
+						}
+						var overEl;
+						try {
+							/* overEl = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY).className.indexOf("ripple") >= 0; */
+							overEl = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY).classList.contains("ripple");
+						} catch (err) {
+							overEl = false;
+						}
+						if (!overEl) {
+							rippleRetrieve(e);
+						}
+					}, {
+						passive: true
+					});
+					rippleButtons[i].addEventListener("touchend", function (e) {
+						rippleEnd(e);
+					}, {
+						passive: true
+					});
+					rippleButtons[i].addEventListener("mousedown", function (e) {
+						rippleStart(e);
+					}, {
+						passive: true
+					});
+					rippleButtons[i].addEventListener("mouseup", function (e) {
+						rippleEnd(e);
+					}, {
+						passive: true
+					});
+					rippleButtons[i].addEventListener("mousemove", function (e) {
+						if (e.target.hasAttribute("ripple-cancel-on-move") && (e.movementX !== 0 || e.movementY !== 0)) {
+							rippleRetrieve(e);
+						}
+					}, {
+						passive: true
+					});
+					rippleButtons[i].addEventListener("mouseleave", function (e) {
+						rippleRetrieve(e);
+					}, {
+						passive: true
+					});
+					rippleButtons[i].addEventListener("transitionend", function (e) {
+						if (e.target.getAttribute("animating") === "2" || e.target.getAttribute("animating") === "3") {
+							e.target.style.transition = "none";
+							e.target.style.transform = "translate(-50%, -50%) scale(0)";
+							e.target.style.boxShadow = "none";
+							e.target.setAttribute("animating", "0");
+						}
+					}, {
+						passive: true
+					});
+					if (getRippleContainer(rippleButtons[i]) === rippleButtons[i]) {
+						rippleButtons[i].innerHTML += '<div class="rippleContainer"></div>';
+					}
+				};
+				for (i = 0; i < rippleButtons.length; i++) {
+					var isBindedRippleClass = "is-binded-ripple";
+					if (!rippleButtons[i].classList.contains(isBindedRippleClass)) {
+						rippleButtons[i].classList.add(isBindedRippleClass);
+						fn1();
+					}
+				}
+			},
+			ripple: function (el) {
+				/* if (el.className.indexOf("ripple") < 0) { */
+				if (!el.classList.contains("ripple")) {
+					return;
+				}
+				var rect = el.getBoundingClientRect();
+				var e = {
+					target: el,
+					offsetX: rect.width / 2,
+					offsetY: rect.height / 2
+				};
+				rippleStart(e);
+				rippleEnd(e);
+			}
+		};
+		/* root.addEventListener("load", function () { */
+			var css = document.createElement("style");
+			css.type = "text/css";
+			css.innerHTML = ".ripple { overflow: hidden !important; position: relative; } .ripple .rippleContainer { display: block; height: 200px !important; width: 200px !important; padding: 0px 0px 0px 0px; border-radius: 50%; position: absolute !important; top: 0px; left: 0px; transform: translate(-50%, -50%) scale(0); -webkit-transform: translate(-50%, -50%) scale(0); -ms-transform: translate(-50%, -50%) scale(0); background-color: transparent; } .ripple * {pointer-events: none !important;}";
+			document.head.appendChild(css);
+			ripple.registerRipples();
+		/* }); */
+		return ripple;
+	})
+	();
+	root.ripple = ripple;
+})("undefined" !== typeof window ? window : this, document);
+
+/*!
  * modified Simple lightbox effect in pure JS
  * @see {@link https://github.com/squeral/lightbox}
  * @see {@link https://github.com/squeral/lightbox/blob/master/lightbox.js}
@@ -2717,412 +3126,3 @@ if (typeof exports === 'object') {
         exports.EventEmitter = EventEmitter;
     }
 }(typeof window !== 'undefined' ? window : this || {}));
-
-/*!
- * @license Minigrid v3.1.1 minimal cascading grid layout http://alves.im/minigrid
- * @see {@link https://github.com/henriquea/minigrid}
- * changed element selection method
- * passes jshint
- */
-(function(root, document) {
-	"use strict";
-	var getElementsByClassName = "getElementsByClassName";
-	var getElementById = "getElementById";
-	var _length = "length";
-	function extend(a, b) {
-		for (var key in b) {
-			if (b.hasOwnProperty(key)) {
-				a[key] = b[key];
-			}
-		}
-		return a;
-	}
-	var elementsSelector;
-	elementsSelector = function (selector, context, undefined) {
-		var matches = {
-			"#": "getElementById",
-			".": "getElementsByClassName",
-			"@": "getElementsByName",
-			"=": "getElementsByTagName",
-			"*": "querySelectorAll"
-		}
-		[selector[0]];
-		var el = (((context === undefined) ? document : context)[matches](selector.slice(1)));
-		return ((el.length < 2) ? el[0] : el);
-	};
-	var Minigrid = function(props) {
-		var containerEle = props.container instanceof Node ?
-			(props.container) :
-			(elementsSelector(props.container) || "");
-		var itemsNodeList = props.item instanceof NodeList ?
-			props.item :
-			(elementsSelector(props.item) || "");
-		this.props = extend(props, {
-			container: containerEle,
-			nodeList: itemsNodeList
-		});
-	};
-	Minigrid.prototype.mount = function() {
-		if (!this.props.container) {
-			return false;
-		}
-		if (!this.props.nodeList || this.props.nodeList[_length] === 0) {
-			return false;
-		}
-		var gutter = (typeof this.props.gutter === "number" && isFinite(this.props.gutter) && Math.floor(this.props.gutter) === this.props.gutter) ? this.props.gutter : 0;
-		var done = this.props.done;
-		var containerEle = this.props.container;
-		var itemsNodeList = this.props.nodeList;
-		containerEle.style.width = "";
-		var forEach = Array.prototype.forEach;
-		var containerWidth = containerEle.getBoundingClientRect().width;
-		var firstChildWidth = itemsNodeList[0].getBoundingClientRect().width + gutter;
-		var cols = Math.max(Math.floor((containerWidth - gutter) / firstChildWidth), 1);
-		var count = 0;
-		containerWidth = (firstChildWidth * cols + gutter) + "px";
-		containerEle.style.width = containerWidth;
-		containerEle.style.position = "relative";
-		var itemsGutter = [];
-		var itemsPosX = [];
-		for (var g = 0; g < cols; ++g) {
-			itemsPosX.push(g * firstChildWidth + gutter);
-			itemsGutter.push(gutter);
-		}
-		if (this.props.rtl) {
-			itemsPosX.reverse();
-		}
-		forEach.call(itemsNodeList, function(item) {
-			var itemIndex = itemsGutter.slice(0).sort(function(a, b) {
-				return a - b;
-			}).shift();
-			itemIndex = itemsGutter.indexOf(itemIndex);
-			var posX = parseInt(itemsPosX[itemIndex]);
-			var posY = parseInt(itemsGutter[itemIndex]);
-			item.style.position = "absolute";
-			item.style.webkitBackfaceVisibility = item.style.backfaceVisibility = "hidden";
-			item.style.transformStyle = "preserve-3d";
-			item.style.transform = "translate3D(" + posX + "px," + posY + "px, 0)";
-			itemsGutter[itemIndex] += item.getBoundingClientRect().height + gutter;
-			count = count + 1;
-		});
-		containerEle.style.display = "";
-		var containerHeight = itemsGutter.slice(0).sort(function(a, b) {
-			return a - b;
-		}).pop();
-		containerEle.style.height = containerHeight + "px";
-		if (typeof done === "function") {
-			done(itemsNodeList);
-		}
-	};
-	root.Minigrid = Minigrid;
-}
-("undefined" !== typeof window ? window : this, document));
-
-/*!
- * A small javascript library for ripples
- * /Written by Aaron Längert
- * @see {@link https://github.com/SirBaaron/ripple-js}
- * replaced eval with workaround
- * moved functions away from for loop
- * == to ===
- * added is binded ripple class to avoid multiple assignments
- * moved some functions higher
- * passes jshint
- */
-(function (root, document) {
-	"use strict";
-	var ripple = (function () {
-		function getRippleContainer(el) {
-			var childs = el.childNodes;
-			for (var ii = 0; ii < childs.length; ii++) {
-				try {
-					/* if (childs[ii].className.indexOf("rippleContainer") > -1) { */
-					if (childs[ii].classList.contains("rippleContainer")) {
-						return childs[ii];
-					}
-				} catch (err) {}
-			}
-			return el;
-		}
-		function rippleStart(e) {
-			var rippleContainer = getRippleContainer(e.target);
-			/* if ((rippleContainer.getAttribute("animating") === "0" || !rippleContainer.hasAttribute("animating")) && e.target.className.indexOf("ripple") > -1) { */
-			if ((rippleContainer.getAttribute("animating") === "0" || !rippleContainer.hasAttribute("animating")) && e.target.classList.contains("ripple")) {
-				rippleContainer.setAttribute("animating", "1");
-				var offsetX = typeof e.offsetX === "number" ? e.offsetX : e.touches[0].clientX - e.target.getBoundingClientRect().left;
-				var offsetY = typeof e.offsetY === "number" ? e.offsetY : e.touches[0].clientY - e.target.getBoundingClientRect().top;
-				var fullCoverRadius = Math.max(Math.sqrt(Math.pow(offsetX, 2) + Math.pow(offsetY, 2)), Math.sqrt(Math.pow(e.target.clientWidth - offsetX, 2) + Math.pow(e.target.clientHeight - offsetY, 2)), Math.sqrt(Math.pow(offsetX, 2) + Math.pow(e.target.clientHeight - offsetY, 2)), Math.sqrt(Math.pow(offsetY, 2) + Math.pow(e.target.clientWidth - offsetX, 2)));
-				var expandTime = e.target.getAttribute("ripple-press-expand-time") || 3;
-				rippleContainer.style.transition = "transform " + expandTime + "s ease-out, box-shadow 0.1s linear";
-				rippleContainer.style.background = e.target.getAttribute("ripple-color") || "white";
-				rippleContainer.style.opacity = e.target.getAttribute("ripple-opacity") || "0.6";
-				rippleContainer.style.boxShadow = e.target.getAttribute("ripple-shadow") || "none";
-				rippleContainer.style.top = offsetY + "px";
-				rippleContainer.style.left = offsetX + "px";
-				rippleContainer.style.transform = "translate(-50%, -50%) scale(" + fullCoverRadius / 100 + ")";
-			}
-		}
-		function rippleEnd(e) {
-			var rippleContainer = getRippleContainer(e.target);
-			if (rippleContainer.getAttribute("animating") === "1") {
-				rippleContainer.setAttribute("animating", "2");
-				var background = root.getComputedStyle(rippleContainer, null).getPropertyValue("background");
-				var destinationRadius = e.target.clientWidth + e.target.clientHeight;
-				rippleContainer.style.transition = "none";
-				var expandTime = e.target.getAttribute("ripple-release-expand-time") || 0.4;
-				rippleContainer.style.transition = "transform " + expandTime + "s linear, background " + expandTime + "s linear, opacity " + expandTime + "s ease-in-out";
-				rippleContainer.style.transform = "translate(-50%, -50%) scale(" + destinationRadius / 100 + ")";
-				rippleContainer.style.background = "radial-gradient(transparent 10%, " + background + " 40%)";
-				rippleContainer.style.opacity = "0";
-				e.target.dispatchEvent(new CustomEvent("ripple-button-click", {
-						target: e.target
-					}));
-				var Fn = Function;
-				new Fn("" + e.target.getAttribute("onrippleclick")).call(root);
-			}
-		}
-		function rippleRetrieve(e) {
-			var rippleContainer = getRippleContainer(e.target);
-			if (rippleContainer.style.transform === "translate(-50%, -50%) scale(0)") {
-				rippleContainer.setAttribute("animating", "0");
-			}
-			if (rippleContainer.getAttribute("animating") === "1") {
-				rippleContainer.setAttribute("animating", "3");
-				var collapseTime = e.target.getAttribute("ripple-leave-collapse-time") || 0.4;
-				rippleContainer.style.transition = "transform " + collapseTime + "s linear, box-shadow " + collapseTime + "s linear";
-				rippleContainer.style.boxShadow = "none";
-				rippleContainer.style.transform = "translate(-50%, -50%) scale(0)";
-			}
-		}
-		var ripple = {
-			registerRipples: function () {
-				var rippleButtons = document.getElementsByClassName("ripple");
-				var i;
-				var fn1 = function () {
-					rippleButtons[i].addEventListener("touchstart", function (e) {
-						rippleStart(e);
-					}, {
-						passive: true
-					});
-					rippleButtons[i].addEventListener("touchmove", function (e) {
-						if (e.target.hasAttribute("ripple-cancel-on-move")) {
-							rippleRetrieve(e);
-							return;
-						}
-						var overEl;
-						try {
-							/* overEl = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY).className.indexOf("ripple") >= 0; */
-							overEl = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY).classList.contains("ripple");
-						} catch (err) {
-							overEl = false;
-						}
-						if (!overEl) {
-							rippleRetrieve(e);
-						}
-					}, {
-						passive: true
-					});
-					rippleButtons[i].addEventListener("touchend", function (e) {
-						rippleEnd(e);
-					}, {
-						passive: true
-					});
-					rippleButtons[i].addEventListener("mousedown", function (e) {
-						rippleStart(e);
-					}, {
-						passive: true
-					});
-					rippleButtons[i].addEventListener("mouseup", function (e) {
-						rippleEnd(e);
-					}, {
-						passive: true
-					});
-					rippleButtons[i].addEventListener("mousemove", function (e) {
-						if (e.target.hasAttribute("ripple-cancel-on-move") && (e.movementX !== 0 || e.movementY !== 0)) {
-							rippleRetrieve(e);
-						}
-					}, {
-						passive: true
-					});
-					rippleButtons[i].addEventListener("mouseleave", function (e) {
-						rippleRetrieve(e);
-					}, {
-						passive: true
-					});
-					rippleButtons[i].addEventListener("transitionend", function (e) {
-						if (e.target.getAttribute("animating") === "2" || e.target.getAttribute("animating") === "3") {
-							e.target.style.transition = "none";
-							e.target.style.transform = "translate(-50%, -50%) scale(0)";
-							e.target.style.boxShadow = "none";
-							e.target.setAttribute("animating", "0");
-						}
-					}, {
-						passive: true
-					});
-					if (getRippleContainer(rippleButtons[i]) === rippleButtons[i]) {
-						rippleButtons[i].innerHTML += '<div class="rippleContainer"></div>';
-					}
-				};
-				for (i = 0; i < rippleButtons.length; i++) {
-					var isBindedRippleClass = "is-binded-ripple";
-					if (!rippleButtons[i].classList.contains(isBindedRippleClass)) {
-						rippleButtons[i].classList.add(isBindedRippleClass);
-						fn1();
-					}
-				}
-			},
-			ripple: function (el) {
-				/* if (el.className.indexOf("ripple") < 0) { */
-				if (!el.classList.contains("ripple")) {
-					return;
-				}
-				var rect = el.getBoundingClientRect();
-				var e = {
-					target: el,
-					offsetX: rect.width / 2,
-					offsetY: rect.height / 2
-				};
-				rippleStart(e);
-				rippleEnd(e);
-			}
-		};
-		/* root.addEventListener("load", function () { */
-			var css = document.createElement("style");
-			css.type = "text/css";
-			css.innerHTML = ".ripple { overflow: hidden !important; position: relative; } .ripple .rippleContainer { display: block; height: 200px !important; width: 200px !important; padding: 0px 0px 0px 0px; border-radius: 50%; position: absolute !important; top: 0px; left: 0px; transform: translate(-50%, -50%) scale(0); -webkit-transform: translate(-50%, -50%) scale(0); -ms-transform: translate(-50%, -50%) scale(0); background-color: transparent; } .ripple * {pointer-events: none !important;}";
-			document.head.appendChild(css);
-			ripple.registerRipples();
-		/* }); */
-		return ripple;
-	})
-	();
-	root.ripple = ripple;
-})("undefined" !== typeof window ? window : this, document);
-
-/*!
- * @app ReadMoreJS
- * @desc Breaks the content of an element to the specified number of words
- * @version 1.0.0
- * @license The MIT License (MIT)
- * @author George Raptis | http://georap.gr
- * @see {@link https://github.com/georapbox/ReadMore.js/blob/master/src/readMoreJS.js}
- * changed: rmLink = doc.querySelectorAll('.rm-link');
- * to: rmLink = doc.getElementsByClassName('rm-link') || "";
- * changed: var target = doc.querySelectorAll(options.target)
- * to: var target = elementsSelector(options.target)
- */
-(function (win, doc, undef) {
-	'use strict';
-	var RM = {};
-	RM.helpers = {
-		extendObj: function () {
-			for (var i = 1, l = arguments.length; i < l; i++) {
-				for (var key in arguments[i]) {
-					if (arguments[i].hasOwnProperty(key)) {
-						if (arguments[i][key] && arguments[i][key].constructor && arguments[i][key].constructor === Object) {
-							arguments[0][key] = arguments[0][key] || {};
-							this.extendObj(arguments[0][key], arguments[i][key]);
-						} else {
-							arguments[0][key] = arguments[i][key];
-						}
-					}
-				}
-			}
-			return arguments[0];
-		}
-	};
-	RM.countWords = function (str) {
-		return str.split(/\s+/).length;
-	};
-	RM.generateTrimmed = function (str, wordsNum) {
-		return str.split(/\s+/).slice(0, wordsNum).join(' ') + '...';
-	};
-	RM.init = function (options) {
-		var defaults = {
-			target: '',
-			numOfWords: 50,
-			toggle: true,
-			moreLink: 'read more...',
-			lessLink: 'read less'
-		};
-		options = RM.helpers.extendObj({}, defaults, options);
-		var elementsSelector;
-		elementsSelector = function (selector, context, undefined) {
-			var matches = {
-				"#": "getElementById",
-				".": "getElementsByClassName",
-				"@": "getElementsByName",
-				"=": "getElementsByTagName",
-				"*": "querySelectorAll"
-			}
-			[selector[0]];
-			var el = (((context === undefined) ? document : context)[matches](selector.slice(1)));
-			return ((el.length < 2) ? el[0] : el);
-		};
-		var target = elementsSelector(options.target) || "",
-		targetLen = target.length,
-		targetContent,
-		trimmedTargetContent,
-		targetContentWords,
-		initArr = [],
-		trimmedArr = [],
-		i,
-		j,
-		l,
-		moreContainer,
-		rmLink,
-		moreLinkID,
-		index;
-		for (i = 0; i < targetLen; i++) {
-			targetContent = target[i].innerHTML;
-			trimmedTargetContent = RM.generateTrimmed(targetContent, options.numOfWords);
-			targetContentWords = RM.countWords(targetContent);
-			initArr.push(targetContent);
-			trimmedArr.push(trimmedTargetContent);
-			if (options.numOfWords < targetContentWords - 1) {
-				target[i].innerHTML = trimmedArr[i];
-				if (options.inline) {
-					moreContainer = doc.createElement('span');
-				} else {
-					if (options.customBlockElement) {
-						moreContainer = doc.createElement(options.customBlockElement);
-					} else {
-						moreContainer = doc.createElement('div');
-					}
-				}
-				moreContainer.innerHTML = '<a href="javascript:void(0);" id="rm-more_' +
-					i +
-					'" class="rm-link" style="cursor:pointer;">' +
-					options.moreLink +
-					'</a>';
-				if (options.inline) {
-					target[i].appendChild(moreContainer);
-				} else {
-					target[i].parentNode.insertBefore(moreContainer, target[i].nextSibling);
-				}
-			}
-		}
-		rmLink = doc.getElementsByClassName('rm-link') || "";
-		var func = function () {
-			moreLinkID = this.getAttribute('id');
-			index = moreLinkID.split('_')[1];
-			if (this.getAttribute('data-clicked') !== 'true') {
-				target[index].innerHTML = initArr[index];
-				if (options.toggle !== false) {
-					this.innerHTML = options.lessLink;
-					this.setAttribute('data-clicked', true);
-				} else {
-					this.innerHTML = '';
-				}
-			} else {
-				target[index].innerHTML = trimmedArr[index];
-				this.innerHTML = options.moreLink;
-				this.setAttribute('data-clicked', false);
-			}
-		};
-		for (j = 0, l = rmLink.length; j < l; j++) {
-			rmLink[j].onclick = func;
-		}
-	};
-	window.$readMoreJS = RM;
-})("undefined" !== typeof window ? window : this, document);
