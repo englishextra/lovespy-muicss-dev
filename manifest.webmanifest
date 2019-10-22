@@ -1,7 +1,6 @@
 {
 	"name": "lovespy",
 	"short_name": "lovespy",
-	"manifest_version": 2,
 	"icons": [{
 		"src": "/android-chrome-192x192.png",
 		"sizes": "192x192",
@@ -18,13 +17,9 @@
 		"type": "image/png"
 	}],
 	"scope": "/",
-	"mjs_access_whitelist": [{
-		"url": "https://lovespy.github.io/"
-	}],
 	"start_url": "https://lovespy.github.io/",
 	"display": "standalone",
 	"orientation": "any",
-	"ms_TileColor": "#22C0F8",
 	"theme_color": "#22C0F8",
 	"background_color": "#22C0F8"
 }
